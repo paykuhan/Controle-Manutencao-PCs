@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Manutenção .XLSX</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen pb-12">
+
+    <div class="max-w-6xl mx-auto p-4 space-y-6">
+        
+        <header class="bg-slate-800 p-4 rounded-xl shadow-md border border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="text-center sm:text-left">
+                <h1 class="text-xl font-bold text-white tracking-wide flex items-center justify-center sm:justify-start gap-2">
+                    🖥️ Controle de Manutenção PCs Paulo VI
+                </h1>
+                <p class="text-xs text-slate-400">Total de máquinas: <span id="contador" class="font-bold text-blue-400">0</span></p>
+            </div>
+            <button onclick="exportarExcel()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow transition duration-200">
+                📊 Exportar Excel (.XLSX)
+            </button>
+        </header>
+
+        <div class="sticky top-2 z-40 bg-slate-800/95 p-3 rounded-xl shadow-lg border border-slate-700 backdrop-blur-md">
+            <input type="text" id="busca" oninput="filtrarPCs()" placeholder="🔍 Buscar por setor, processador, marca, status..." 
+                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-inner">
+        </div>
+
+        <div class="bg-slate-800 rounded-xl shadow-md border border-slate-700 overflow-hidden">
+            <button type="button" onclick="toggleFormulario()" class="w-full p-4 flex justify-between items-center bg-slate-750 hover:bg-slate-700/50 transition">
+                <span id="txt-btn-toggle" class="font-bold text-sm text-slate-200 flex items-center gap-2">➕ Cadastrar Novo Computador</span>
+                <span id="seta-toggle" class="text-slate-400 transform transition-transform duration-200">👇</span>
+            </button>
+            
+            <div id="wrapper-form" class="hidden p-4 border-t border-slate-700 bg-slate-800/50">
+                <form id="form-pc" onsubmit="salvarPC(event)" class="space-y-4">
+                    <input type="hidden" id="pc-id">
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Setor *</label>
+                            <input type="text" id="setor" required class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Marca / Modelo *</label>
+                            <input type="text" id="marca" required class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Processador (CPU) *</label>
+                            <input type="text" id="cpu" required class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Memória RAM *</label>
+                            <input type="text" id="memoria" placeholder="Ex: 8GB DDR3" required class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Clock da Memória</label>
+                            <input type="text" id="clock" placeholder="Ex: 1333MHz" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Armazenamento (HDD/SSD)</label>
+                            <input type="text" id="armazenamento" placeholder="Ex: SSD 240GB" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Sistema Operacional</label>
+                            <input type="text" id="so" placeholder="Ex: Windows 11 Pro" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Status do Equipamento</label>
+                            <select id="status" class="w-full border border-slate-600 p-2 rounded text-sm font-semibold text-white bg-slate-900 focus:outline-none">
+                                <option value="Operacional">🟢 Operacional</option>
+                                <option value="Atenção" selected>🟡 Atenção</option>
+                                <option value="Manutenção">🔴 Manutenção</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Última Limpeza / Física</label>
+                            <input type="text" id="limpeza" placeholder="Ex: Junho 2026" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Tipo</label>
+                            <select id="tipo" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white">
+                                <option value="Desktop">Desktop</option>
+                                <option value="Notebook">Notebook</option>
+                                <option value="Servidor">Servidor</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Data da Manutenção</label>
+                            <input type="date" id="data_manutencao" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">URL da Foto (Opcional)</label>
+                            <input type="text" id="foto" class="w-full bg-slate-900 border border-slate-600 p-2 rounded text-sm text-white">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 space-y-3">
+                        <span class="text-xs font-bold text-blue-400 uppercase tracking-wider block">🛠️ Registrar Novo Serviço Técnico (Gera Histórico)</span>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Problema Encontrado</label>
+                                <input type="text" id="problemas" placeholder="O que o PC apresentou?" class="w-full bg-slate-800 border border-slate-600 p-2 rounded text-sm text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Serviço Realizado / Observações</label>
+                                <input type="text" id="observacoes" placeholder="O que foi feito para corrigir?" class="w-full bg-slate-800 border border-slate-600 p-2 rounded text-sm text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" onclick="limparEFecharForm()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-lg text-xs font-medium">Cancelar</button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-xs font-semibold shadow">Salvar Dados</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <main>
+            <div class="hidden md:block bg-slate-800 rounded-xl shadow-md border border-slate-700 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-700 text-slate-300 text-xs uppercase border-b border-slate-600">
+                            <th class="p-4">Setor</th>
+                            <th class="p-4">Equipamento (Clique na linha para expandir histórico)</th>
+                            <th class="p-4">Configuração Técnica</th>
+                            <th class="p-4">Status</th>
+                            <th class="p-4 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-pcs-desktop" class="text-sm"></tbody>
+                </table>
+            </div>
+
+            <div id="cards-pcs-mobile" class="block md:hidden space-y-3"></div>
+        </main>
+    </div>
+
+    <script>
+        let pcs = JSON.parse(localStorage.getItem('sys_inventario_v6')) || [];
+
+        if (pcs.length === 0) {
+            pcs.push({
+                id: "1",
+                setor: "Suporte Técnico",
+                marca: "Gigabyte",
+                cpu: "Core i5-3340",
+                memoria: "8GB DDR3",
+                clock: "1333MHz",
+                tipo: "Desktop",
+                data_manutencao: "2026-06-12",
+                armazenamento: "SSD 240GB",
+                so: "Windows 11 Pro",
+                status: "Atenção",
+                limpeza: "Não",
+                foto: "",
+                historico: [
+                    {
+                        data: "12/06/2026",
+                        problema: "Cooler barulhento",
+                        solucao: "Substituído cooler e aplicada pasta térmica."
+                    }
+                ]
+            });
+            localStorage.setItem('sys_inventario_v6', JSON.stringify(pcs));
+        }
+
+        function toggleFormulario() {
+            const wrapper = document.getElementById('wrapper-form');
+            const seta = document.getElementById('seta-toggle');
+            const txt = document.getElementById('txt-btn-toggle');
+            const idForm = document.getElementById('pc-id').value;
+
+            if (wrapper.classList.contains('hidden')) {
+                wrapper.classList.remove('hidden');
+                seta.style.transform = "rotate(180deg)";
+                txt.innerText = idForm ? "✏️ Editando Dados do Computador" : "➕ Fechar Formulário de Cadastro";
+            } else {
+                wrapper.classList.add('hidden');
+                seta.style.transform = "rotate(0deg)";
+                txt.innerText = idForm ? "✏️ Editando Dados do Computador" : "➕ Cadastrar Novo Computador";
+            }
+        }
+
+        function limparEFecharForm() {
+            document.getElementById('form-pc').reset();
+            document.getElementById('pc-id').value = '';
+            document.getElementById('txt-btn-toggle').innerText = "➕ Cadastrar Novo Computador";
+            document.getElementById('wrapper-form').classList.add('hidden');
+            document.getElementById('seta-toggle').style.transform = "rotate(0deg)";
+        }
+
+        function salvarPC(e) {
+            e.preventDefault();
+            const id = document.getElementById('pc-id').value;
+            
+            const probAtual = document.getElementById('problemas').value.trim();
+            const obsAtuais = document.getElementById('observacoes').value.trim();
+            const inputData = document.getElementById('data_manutencao').value;
+            
+            let dataDoServico = inputData ? 
+                new Date(inputData + 'T00:00:00').toLocaleDateString('pt-BR') : 
+                new Date().toLocaleDateString('pt-BR');
+            
+            let novoHistoricoItem = null;
+            if (probAtual || obsAtuais) {
+                novoHistoricoItem = {
+                    data: dataDoServico,
+                    problema: probAtual || "Manutenção Corretiva",
+                    solucao: obsAtuais || "Serviço efetuado."
+                };
+            }
+
+            if (id) {
+                const index = pcs.findIndex(p => p.id === id);
+                if (index !== -1) {
+                    const historicoAntigo = pcs[index].historico || [];
+                    if (novoHistoricoItem) historicoAntigo.unshift(novoHistoricoItem);
+                    
+                    pcs[index] = {
+                        id: id,
+                        setor: document.getElementById('setor').value,
+                        marca: document.getElementById('marca').value,
+                        cpu: document.getElementById('cpu').value,
+                        memoria: document.getElementById('memoria').value,
+                        clock: document.getElementById('clock').value,
+                        tipo: document.getElementById('tipo').value,
+                        data_manutencao: inputData,
+                        armazenamento: document.getElementById('armazenamento').value,
+                        so: document.getElementById('so').value,
+                        status: document.getElementById('status').value,
+                        limpeza: document.getElementById('limpeza').value,
+                        foto: document.getElementById('foto').value,
+                        historico: historicoAntigo
+                    };
+                }
+            } else {
+                pcs.push({
+                    id: Date.now().toString(),
+                    setor: document.getElementById('setor').value,
+                    marca: document.getElementById('marca').value,
+                    cpu: document.getElementById('cpu').value,
+                    memoria: document.getElementById('memoria').value,
+                    clock: document.getElementById('clock').value,
+                    tipo: document.getElementById('tipo').value,
+                    data_manutencao: inputData,
+                    armazenamento: document.getElementById('armazenamento').value,
+                    so: document.getElementById('so').value,
+                    status: document.getElementById('status').value,
+                    limpeza: document.getElementById('limpeza').value,
+                    foto: document.getElementById('foto').value,
+                    historico: novoHistoricoItem ? [novoHistoricoItem] : []
+                });
+            }
+
+            localStorage.setItem('sys_inventario_v6', JSON.stringify(pcs));
+            renderizarLayout(pcs);
+            limparEFecharForm();
+        }
+
+        function renderizarLayout(lista) {
+            document.getElementById('contador').innerText = lista.length;
+            const tbodyDesktop = document.getElementById('tabela-pcs-desktop');
+            const containerMobile = document.getElementById('cards-pcs-mobile');
+            
+            tbodyDesktop.innerHTML = '';
+            containerMobile.innerHTML = '';
+
+            lista.forEach(pc => {
+                let badgeColor = pc.status === 'Operacional' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : pc.status === 'Atenção' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
+                let statusEmoji = pc.status === 'Operacional' ? '🟢' : pc.status === 'Atenção' ? '🟡' : '🔴';
+
+                // DESKTOP
+                const trLinhaPrincipal = document.createElement('tr');
+                trLinhaPrincipal.className = "hover:bg-slate-700/40 cursor-pointer transition text-slate-300 border-b border-slate-700/60";
+                trLinhaPrincipal.setAttribute('onclick', `toggleLinhaHistorico(event, 'desc-${pc.id}')`);
+                trLinhaPrincipal.innerHTML = `
+                    <td class="p-4 font-semibold text-slate-200">${pc.setor}</td>
+                    <td class="p-4 font-bold text-blue-400 flex items-center gap-2">
+                        <span>▶</span> ${pc.marca} <span class="text-xs font-normal text-slate-500">(${pc.tipo})</span>
+                    </td>
+                    <td class="p-4">
+                        <div class="font-medium text-slate-200">${pc.cpu} • ${pc.memoria}</div>
+                        <div class="text-xs text-slate-400">${pc.armazenamento || 'S/D'} • ${pc.so || 'S/S.O'}</div>
+                    </td>
+                    <td class="p-4"><span class="px-2 py-0.5 text-xs font-bold rounded-md ${badgeColor}">${pc.status}</span></td>
+                    <td class="p-4 text-center" onclick="event.stopPropagation();">
+                        <div class="flex justify-center gap-3">
+                            <button onclick="editarPC('${pc.id}')" class="text-amber-400 hover:text-amber-300 font-medium">✏️ Editar</button>
+                            <button onclick="deletarPC('${pc.id}')" class="text-rose-400 hover:text-rose-300 font-medium">❌ Apagar</button>
+                        </div>
+                    </td>
+                `;
+
+                const trHistoricoContainer = document.createElement('tr');
+                trHistoricoContainer.id = `desc-${pc.id}`;
+                trHistoricoContainer.className = "hidden bg-slate-900/60 border-b border-slate-700";
+                
+                let htmlHistoricoDesktop = `<td colspan="5" class="p-4 text-xs space-y-3">
+                    <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800 grid grid-cols-3 gap-2 text-slate-400">
+                        <div><strong>Limpeza Interna:</strong> ${pc.limpeza || 'Não documentada'}</div>
+                        <div><strong>Última Manutenção:</strong> ${pc.data_manutencao ? new Date(pc.data_manutencao + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}</div>
+                        ${pc.foto ? `<div><a href="${pc.foto}" target="_blank" class="text-blue-400 underline">📸 Ver Anexo Fotográfico</a></div>` : ''}
+                    </div>
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-blue-400 uppercase tracking-wider text-[11px]">Linha do Tempo de Serviços:</h4>`;
+                
+                if (!pc.historico || pc.historico.length === 0) {
+                    htmlHistoricoDesktop += `<p class="text-slate-500 italic">Nenhum histórico disponível para esta máquina.</p>`;
+                } else {
+                    pc.historico.forEach(h => {
+                        htmlHistoricoDesktop += `
+                            <div class="border-l-2 border-blue-500 bg-slate-950/30 p-2 rounded">
+                                <span class="bg-blue-900/40 text-blue-300 px-1.5 py-0.2 rounded font-bold text-[10px]">${h.data}</span>
+                                <div class="text-rose-400 font-medium mt-1">⚠️ Defeito: ${h.problema}</div>
+                                <div class="text-slate-300">🔧 Executado: ${h.solucao}</div>
+                            </div>`;
+                    });
+                }
+                htmlHistoricoDesktop += `</div></td>`;
+                trHistoricoContainer.innerHTML = htmlHistoricoDesktop;
+
+                tbodyDesktop.appendChild(trLinhaPrincipal);
+                tbodyDesktop.appendChild(trHistoricoContainer);
+
+                // MOBILE
+                const card = document.createElement('div');
+                card.className = "bg-slate-800 rounded-xl border border-slate-700 shadow-sm overflow-hidden";
+                card.innerHTML = `
+                    <div onclick="toggleLinhaHistorico(event, 'card-desc-${pc.id}')" class="p-4 cursor-pointer hover:bg-slate-750/30 space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">${pc.setor}</span>
+                                <span class="text-blue-400 font-bold text-base mt-0.5 block">▶ 🚀 ${pc.marca}</span>
+                            </div>
+                            <span class="px-2 py-0.5 text-xs font-bold rounded-md ${badgeColor}">${statusEmoji} ${pc.status}</span>
+                        </div>
+                        <div class="text-xs text-slate-400">${pc.cpu} • ${pc.memoria}</div>
+                    </div>
+                    
+                    <div id="card-desc-${pc.id}" class="hidden p-4 bg-slate-900/60 border-t border-slate-700 space-y-3 text-xs">
+                        <div class="text-xs space-y-1 text-slate-300 grid grid-cols-2 gap-1 bg-slate-950/50 p-2 rounded-lg">
+                            <div><strong>Clock:</strong> ${pc.clock || '-'}</div>
+                            <div><strong>Armaz.:</strong> ${pc.armazenamento || '-'}</div>
+                            <div><strong>Limpeza:</strong> ${pc.limpeza || '-'}</div>
+                            <div><strong>S.O:</strong> ${pc.so || '-'}</div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <h4 class="font-bold text-blue-400 uppercase tracking-wider text-[10px]">Histórico Técnico:</h4>
+                            <div class="space-y-2" id="mobile-timeline-${pc.id}"></div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2 border-t border-slate-700/60">
+                            ${pc.foto ? `<a href="${pc.foto}" target="_blank" class="text-blue-400 font-medium">📸 Foto</a>` : '<div></div>'}
+                            <div class="flex gap-4">
+                                <button onclick="editarPC('${pc.id}')" class="text-amber-400 font-bold">✏️ Editar</button>
+                                <button onclick="deletarPC('${pc.id}')" class="text-rose-400 font-bold">❌ Apagar</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                containerMobile.appendChild(card);
+
+                const timelineMobileContainer = card.querySelector(`#mobile-timeline-${pc.id}`);
+                if (!pc.historico || pc.historico.length === 0) {
+                    timelineMobileContainer.innerHTML = `<p class="text-slate-500 italic">Sem registros.</p>`;
+                } else {
+                    pc.historico.forEach(h => {
+                        timelineMobileContainer.innerHTML += `
+                            <div class="border-l border-blue-500 bg-slate-950/20 p-2 rounded-r">
+                                <span class="text-[9px] text-blue-400 font-bold">${h.data}</span>
+                                <div class="text-rose-400 font-medium">⚠️ Defeito: ${h.problema}</div>
+                                <div class="text-slate-300">🔧 Executado: ${h.solucao}</div>
+                            </div>`;
+                    });
+                }
+            });
+        }
+
+        function toggleLinhaHistorico(event, idElemento) {
+            const elemento = document.getElementById(idElemento);
+            const alvo = event.currentTarget;
+            const seta = alvo.querySelector('span');
+
+            if (elemento.classList.contains('hidden')) {
+                elemento.classList.remove('hidden');
+                if (seta && seta.innerText === '▶') seta.innerText = '▼';
+            } else {
+                elemento.classList.add('hidden');
+                if (seta && seta.innerText === '▼') seta.innerText = '▶';
+            }
+        }
+
+        function filtrarPCs() {
+            const t = document.getElementById('busca').value.toLowerCase().trim();
+            if (t === '') { renderizarLayout(pcs); return; }
+            const res = pcs.filter(p => {
+                return p.setor.toLowerCase().includes(t) || p.marca.toLowerCase().includes(t) || p.cpu.toLowerCase().includes(t) || p.status.toLowerCase().includes(t);
+            });
+            renderizarLayout(res);
+        }
+
+        function editarPC(id) {
+            const pc = pcs.find(p => p.id === id);
+            if (!pc) return;
+
+            document.getElementById('pc-id').value = pc.id;
+            document.getElementById('setor').value = pc.setor;
+            document.getElementById('marca').value = pc.marca;
+            document.getElementById('cpu').value = pc.cpu;
+            document.getElementById('memoria').value = pc.memoria;
+            document.getElementById('clock').value = pc.clock;
+            document.getElementById('tipo').value = pc.tipo;
+            document.getElementById('data_manutencao').value = pc.data_manutencao || '';
+            document.getElementById('armazenamento').value = pc.armazenamento;
+            document.getElementById('so').value = pc.so;
+            document.getElementById('status').value = pc.status;
+            document.getElementById('limpeza').value = pc.limpeza;
+            document.getElementById('foto').value = pc.foto;
+            
+            document.getElementById('problemas').value = '';
+            document.getElementById('observacoes').value = '';
+            
+            const wrapper = document.getElementById('wrapper-form');
+            if(wrapper.classList.contains('hidden')) {
+                toggleFormulario();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deletarPC(id) {
+            if (confirm("Deseja apagar permanentemente esta máquina e todos os logs técnicos dela?")) {
+                pcs = pcs.filter(p => p.id !== id);
+                localStorage.setItem('sys_inventario_v6', JSON.stringify(pcs));
+                renderizarLayout(pcs);
+            }
+        }
+
+        // NOVA FUNÇÃO DE EXPORTAÇÃO UTILIZANDO SHEETJS (.XLSX VERDADEIRO)
+        function exportarExcel() {
+            if(pcs.length === 0) {
+                alert("Não há dados cadastrados para exportar.");
+                return;
+            }
+
+            // Mapeia e organiza as colunas estruturadas para o Excel
+            const dadosExcel = pcs.map(p => {
+                // Junta o histórico completo em blocos de texto legíveis dentro de uma única célula
+                let logsTexto = "";
+                if(p.historico && p.historico.length > 0) {
+                    logsTexto = p.historico.map(h => `[${h.data}] Falha: ${h.problema} -> Solução: ${h.solucao}`).join(" | ");
+                } else {
+                    logsTexto = "Sem manutenções registradas";
+                }
+
+                return {
+                    'Setor': p.setor,
+                    'Marca / Modelo': p.marca,
+                    'Tipo': p.tipo,
+                    'Processador (CPU)': p.cpu,
+                    'Memória RAM': p.memoria,
+                    'Clock da RAM': p.clock || 'N/I',
+                    'Armazenamento': p.armazenamento || 'N/I',
+                    'Sistema Operacional': p.so || 'N/I',
+                    'Status Atual': p.status,
+                    'Última Limpeza Física': p.limpeza || 'Não',
+                    'Data da Última Ação': p.data_manutencao || 'Sem Data',
+                    'Histórico Completo de Serviços': logsTexto
+                };
+            });
+
+            // Cria o livro (Workbook) e a planilha (Worksheet) do Excel
+            const planilha = XLSX.utils.json_to_sheet(dadosExcel);
+            const livro = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(livro, planilha, "Inventário de TI");
+
+            // Define larguras automáticas básicas para as colunas ficarem organizadas
+            planilha['!cols'] = [
+                { wch: 20 }, // Setor
+                { wch: 20 }, // Marca
+                { wch: 12 }, // Tipo
+                { wch: 20 }, // CPU
+                { wch: 12 }, // RAM
+                { wch: 12 }, // Clock
+                { wch: 15 }, // Armazenamento
+                { wch: 20 }, // SO
+                { wch: 15 }, // Status
+                { wch: 20 }, // Limpeza
+                { wch: 18 }, // Data
+                { wch: 60 }  // Linha do tempo de históricos
+            ];
+
+            // Força o download do arquivo binário formato .xlsx de verdade
+            XLSX.writeFile(livro, "inventario_ti_maquinas.xlsx");
+        }
+
+        renderizarLayout(pcs);
+    </script>
+</body>
+</html>
